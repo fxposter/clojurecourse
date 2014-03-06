@@ -14,21 +14,32 @@
 ;;
 ;; Hint: vec, map, keyword, first
 (defn table-keys [tbl]
-  :ImplementMe!)
+  (vec
+    (map keyword
+      (first tbl))))
+
+;; (table-values student-tbl)
+;; => (["1" "Ivanov" "1998"]
+;;     ["2" "Petrov" "1997"]
+;;     ["3" "Sidorov" "1996"])
+(defn table-values [tbl]
+  (next tbl))
 
 ;; (key-value-pairs [:id :surname :year :group_id] ["1" "Ivanov" "1996"])
 ;; => (:id "1" :surname "Ivanov" :year "1996")
 ;;
 ;; Hint: flatten, map, list
 (defn key-value-pairs [tbl-keys tbl-record]
-  :ImplementMe!)
+  (flatten
+    (map list tbl-keys tbl-record)))
 
 ;; (data-record [:id :surname :year :group_id] ["1" "Ivanov" "1996"])
 ;; => {:surname "Ivanov", :year "1996", :id "1"}
 ;;
 ;; Hint: apply, hash-map, key-value-pairs
 (defn data-record [tbl-keys tbl-record]
-  :ImplementMe!)
+  (apply hash-map
+    (key-value-pairs tbl-keys tbl-record)))
 
 ;; (data-table student-tbl)
 ;; => ({:surname "Ivanov", :year "1996", :id "1"}
@@ -37,14 +48,17 @@
 ;;
 ;; Hint: let, map, next, table-keys, data-record
 (defn data-table [tbl]
-  :ImplementMe!)
+  (let [tbl-keys (table-keys tbl)
+        tbl-values (table-values tbl)]
+    (map #(data-record tbl-keys %) tbl-values)))
 
 ;; (str-field-to-int :id {:surname "Ivanov", :year "1996", :id "1"})
 ;; => {:surname "Ivanov", :year "1996", :id 1}
 ;;
 ;; Hint: assoc, Integer/parseInt, get
 (defn str-field-to-int [field rec]
-  :ImplementMe!)
+  (assoc rec field
+    (Integer/parseInt (field rec))))
 
 (def student (->> (data-table student-tbl)
                   (map #(str-field-to-int :id %))
@@ -63,20 +77,26 @@
 ;;
 ;; Hint: if-not, filter
 (defn where* [data condition-func]
-  :ImplementMe!)
+  (if condition-func
+    (filter condition-func data)
+    data))
 
 ;; (limit* student 1)
 ;; => ({:surname "Ivanov", :year 1998, :id 1})
 ;;
 ;; Hint: if-not, take
 (defn limit* [data lim]
-  :ImplementMe!)
+  (if lim
+    (take lim data)
+    data))
 
 ;; (order-by* student :year)
 ;; => ({:surname "Sidorov", :year 1996, :id 3} {:surname "Petrov", :year 1997, :id 2} {:surname "Ivanov", :year 1998, :id 1})
 ;; Hint: if-not, sort-by
 (defn order-by* [data column]
-  :ImplementMe!)
+  (if column
+    (sort-by column data)
+    data))
 
 ;; (join* (join* student-subject :student_id student :id) :subject_id subject :id)
 ;; => [{:subject "Math", :subject_id 1, :surname "Ivanov", :year 1998, :student_id 1, :id 1}
@@ -87,12 +107,10 @@
 ;; Hint: reduce, conj, merge, first, filter, get
 ;; Here column1 belongs to data1, column2 belongs to data2.
 (defn join* [data1 column1 data2 column2]
-  ;; 1. Start collecting results from empty collection.
-  ;; 2. Go through each element of data1.
-  ;; 3. For each element of data1 (lets call it element1) find all elements of data2 (lets call each as element2) where column1 = column2.
-  ;; 4. Use function 'merge' and merge element1 with each element2.
-  ;; 5. Collect merged elements.
-  :ImplementMe!)
+  (for [rec1 data1
+        rec2 data2
+        :when (= (column1 rec1) (column2 rec2))]
+    (merge rec2 rec1)))
 
 ;; (perform-joins student-subject [[:student_id student :id] [:subject_id subject :id]])
 ;; => [{:subject "Math", :subject_id 1, :surname "Ivanov", :year 1998, :student_id 1, :id 1} {:subject "Math", :subject_id 1, :surname "Petrov", :year 1997, :student_id 2, :id 2} {:subject "CS", :subject_id 2, :surname "Petrov", :year 1997, :student_id 2, :id 2} {:subject "CS", :subject_id 2, :surname "Sidorov", :year 1996, :student_id 3, :id 3}]
