@@ -14,9 +14,8 @@
 ;;
 ;; Hint: vec, map, keyword, first
 (defn table-keys [tbl]
-  (vec
-    (map keyword
-      (first tbl))))
+  (mapv keyword
+    (first tbl)))
 
 ;; (table-values student-tbl)
 ;; => (["1" "Ivanov" "1998"]
@@ -30,8 +29,7 @@
 ;;
 ;; Hint: flatten, map, list
 (defn key-value-pairs [tbl-keys tbl-record]
-  (flatten
-    (map list tbl-keys tbl-record)))
+  (mapcat list tbl-keys tbl-record))
 
 ;; (data-record [:id :surname :year :group_id] ["1" "Ivanov" "1996"])
 ;; => {:surname "Ivanov", :year "1996", :id "1"}
@@ -57,8 +55,7 @@
 ;;
 ;; Hint: assoc, Integer/parseInt, get
 (defn str-field-to-int [field rec]
-  (assoc rec field
-    (Integer/parseInt (field rec))))
+  (update-in rec [field] parse-int))
 
 (def student (->> (data-table student-tbl)
                   (map #(str-field-to-int :id %))
