@@ -21,32 +21,39 @@
   (update-in rec [field] parse-int))
 
 ;; Место для хранения данных - используйте atom/ref/agent/...
-(def student (atom []))
-(def subject (atom []))
-(def student-subject (atom []))
+(def ^:private tables (atom {}))
 
 ;; функция должна вернуть мутабельный объект используя его имя
-(defn get-table [^String tb-name]
-  (let [lname (str/lower-case tb-name)]
-    (cond
-     (= lname "student") student
-     (= lname "subject") subject
-     (= lname "student-subject") student-subject
-     )))
+(defn get-table [^String tbl-name]
+  (let [normalized-tbl-name (str/lower-case tbl-name)
+        tbl (@tables normalized-tbl-name)]
+    (or tbl
+      (throw (IllegalArgumentException. (str "Table " normalized-tbl-name " does not exist"))))))
+
+(defn- create-tables [& kvs]
+  (apply swap! tables assoc
+    (mapcat
+      (fn [[key value]] [key (atom value)])
+      (partition 2 kvs))))
+
+(defn create-table [tbl-name]
+  (create-tables tbl-name []))
+
+(defn drop-table [tbl-name]
+  (swap! tables dissoc tbl-name))
 
 ;;; Данная функция загружает начальные данные из файлов .csv
 ;;; и сохраняет их в изменяемых переменных student, subject, student-subject
 (defn load-initial-data []
-  (reset! student (->> (data-table (csv/read-csv (slurp "student.csv")))
-                       (map #(str-field-to-int :id %))
-                       (map #(str-field-to-int :year %))))
-
-  (reset! subject (->> (data-table (csv/read-csv (slurp "subject.csv")))
-                       (map #(str-field-to-int :id %))))
-
-  (reset! student-subject (->> (data-table (csv/read-csv (slurp "student_subject.csv")))
-                               (map #(str-field-to-int :subject_id %))
-                               (map #(str-field-to-int :student_id %)))))
+  (create-tables
+    "student" (->> (data-table (csv/read-csv (slurp "student.csv")))
+                   (map #(str-field-to-int :id %))
+                   (map #(str-field-to-int :year %)))
+    "subject" (->> (data-table (csv/read-csv (slurp "subject.csv")))
+                   (map #(str-field-to-int :id %)))
+    "student-subject" (->> (data-table (csv/read-csv (slurp "student_subject.csv")))
+                           (map #(str-field-to-int :subject_id %))
+                           (map #(str-field-to-int :student_id %)))))
 
 ;; select-related functions...
 (defn where* [data condition-func]
