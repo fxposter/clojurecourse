@@ -1,5 +1,26 @@
 (ns task02.query
+  (:use [clojure.core.match :only (match)])
   (:use [task02 helpers db]))
+
+(defn make-where-function [field op value]
+  (fn [entry]
+    ((resolve (symbol op)) ((keyword field) entry) (read-string value))))
+
+(defn- parse-other-clauses [v options]
+  (match v
+    ["where" field op value & args]      (recur args (assoc options :where (make-where-function field op value)))
+    ["order" "by" field & args]          (recur args (assoc options :order-by (keyword field)))
+    ["limit" limit & args]               (recur args (assoc options :limit (parse-int limit)))
+    ["join" table "on" f1 "=" f2 & args] (recur args (update-in options [:joins] (fnil conj []) [(keyword f1) table (keyword f2)]))
+    [] options
+    :else nil))
+
+(defn- parse-select-clause [v]
+  (match v
+    ["select" table & args]
+      (if-let [options (parse-other-clauses args {})]
+        (list* table (mapcat identity options)))
+    :else nil))
 
 ;; Функция выполняющая парсинг запроса переданного пользователем
 ;;
@@ -35,9 +56,7 @@
 ;; > (parse-select "werfwefw")
 ;; nil
 (defn parse-select [^String sel-string]
-  :implement-me)
-
-(defn make-where-function [& args] :implement-me)
+  (parse-select-clause (vec (.split sel-string " +"))))
 
 ;; Выполняет запрос переданный в строке.  Бросает исключение если не удалось распарсить запрос
 

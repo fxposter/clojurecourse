@@ -21,9 +21,9 @@
   (update-in rec [field] parse-int))
 
 ;; Место для хранения данных - используйте atom/ref/agent/...
-(def student :implement-me)
-(def subject :implement-me)
-(def student-subject :implement-me)
+(def student (atom []))
+(def subject (atom []))
+(def student-subject (atom []))
 
 ;; функция должна вернуть мутабельный объект используя его имя
 (defn get-table [^String tb-name]
@@ -37,15 +37,16 @@
 ;;; Данная функция загружает начальные данные из файлов .csv
 ;;; и сохраняет их в изменяемых переменных student, subject, student-subject
 (defn load-initial-data []
-  ;;; :implement-me может быть необходимо добавить что-то еще
-  (:implement-me student (->> (data-table (csv/read-csv (slurp "student.csv")))
-                     (map #(str-field-to-int :id %))
-                     (map #(str-field-to-int :year %))))
-  (:implement-me subject (->> (data-table (csv/read-csv (slurp "subject.csv")))
-                     (map #(str-field-to-int :id %))))
-  (:implement-me student-subject (->> (data-table (csv/read-csv (slurp "student_subject.csv")))
-                             (map #(str-field-to-int :subject_id %))
-                             (map #(str-field-to-int :student_id %)))))
+  (reset! student (->> (data-table (csv/read-csv (slurp "student.csv")))
+                       (map #(str-field-to-int :id %))
+                       (map #(str-field-to-int :year %))))
+
+  (reset! subject (->> (data-table (csv/read-csv (slurp "subject.csv")))
+                       (map #(str-field-to-int :id %))))
+
+  (reset! student-subject (->> (data-table (csv/read-csv (slurp "student_subject.csv")))
+                               (map #(str-field-to-int :subject_id %))
+                               (map #(str-field-to-int :student_id %)))))
 
 ;; select-related functions...
 (defn where* [data condition-func]
@@ -90,6 +91,18 @@
 
 ;; insert/update/delete...
 
+(defn- condition-fn [where]
+  (or where (constantly true)))
+
+(defn- delete-records [tbl where]
+  (remove where tbl))
+
+(defn- update-records [tbl upd-map where]
+  (for [entry tbl]
+    (if (where entry)
+      (merge entry upd-map)
+      entry)))
+
 ;; Данная функция должна удалить все записи соответствующие указанному условию
 ;; :where. Если :where не указан, то удаляются все данные.
 ;;
@@ -99,8 +112,7 @@
 ;;   (delete student) -> []
 ;;   (delete student :where #(= (:id %) 1)) -> все кроме первой записи
 (defn delete [data & {:keys [where]}]
-  :implement-me
-  )
+  (swap! data delete-records (condition-fn where)))
 
 ;; Данная функция должна обновить данные в строках соответствующих указанному предикату
 ;; (или во всей таблице).
@@ -112,9 +124,7 @@
 ;;   (update student {:id 5})
 ;;   (update student {:id 6} :where #(= (:year %) 1996))
 (defn update [data upd-map & {:keys [where]}]
-  :implement-me
-  )
-
+  (swap! data update-records upd-map (condition-fn where)))
 
 ;; Вставляет новую строку в указанную таблицу
 ;;
@@ -124,6 +134,5 @@
 ;; Примеры использования:
 ;;   (insert student {:id 10 :year 2000 :surname "test"})
 (defn insert [data new-entry]
-  :implement-me
-  )
+  (swap! data conj new-entry))
 
