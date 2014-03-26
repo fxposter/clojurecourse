@@ -10,9 +10,9 @@
 ;; Hint: *in*, *out*, io/writer, io/reader, socket.getOutputStream(), socket.getInputStream(), socket.close(), binding
 ;;       deliver, prn
 (defn handle-request [^Socket sock]
-
   (binding [*in* (io/reader (.getInputStream sock))
-            *out* (io/writer (.getOutputStream sock))] ;; переопределить *in* & *out* чтобы они указывали на входной и выходной потоки сокета
+            *out* (io/writer (.getOutputStream sock))
+            *flush-on-newline* true] ;; переопределить *in* & *out* чтобы они указывали на входной и выходной потоки сокета
     (try
       (let [s (read-line)] ;; считать данные из переопределенного *in*
         (if (= (str/lower-case s) "quit")
@@ -22,7 +22,7 @@
 
           ;;; 2) выполнить запрос при помощи perform-query и записать
           ;;; результат в переопределенный *out*
-          (print (perform-query s))
+          (println (perform-query s))
           ))
       (catch Throwable ex
         (println "Exception: " ex))
@@ -46,7 +46,7 @@
       )))
 
 (defn run [port]
-  (let [sock-addr (InetSocketAddress. nil port)
+  (let [sock-addr (InetSocketAddress. "localhost" port)
         server-socket (doto (ServerSocket.)
                         (.setReuseAddress true)
                         (.setSoTimeout 3000)
