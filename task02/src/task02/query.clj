@@ -6,26 +6,98 @@
   (fn [entry]
     ((resolve (symbol op)) ((keyword field) entry) (read-string value))))
 
-(defn- parse-other-clauses [v options]
+(defn- parse-where-clause [[v options :as original]]
   (match v
-    ["where" field op value & args]      (recur args (assoc options :where (make-where-function field op value)))
-    ["order" "by" field & args]          (recur args (assoc options :order-by (keyword field)))
-    ["limit" limit & args]               (recur args (assoc options :limit (parse-int limit)))
-    ["join" table "on" f1 "=" f2 & args] (recur args (update-in options [:joins] (fnil conj []) [(keyword f1) table (keyword f2)]))
-    [] options
-    :else nil))
+    ["where" field op value & args] [args (assoc options :where (make-where-function field op value))]
+    :else original))
 
-(defn- parse-select-clause [v]
+(defn- parse-order-by-clause [[v options :as original]]
+  (match v
+    ["order" "by" field & args] [args (assoc options :order-by (keyword field))]
+    :else original))
+
+(defn- parse-limit-clause [[v options :as original]]
+  (match v
+    ["limit" limit & args] [args (assoc options :limit (parse-int limit))]
+    :else original))
+
+(defn- parse-join-clause [[v options :as original]]
+  (match v
+    ["join" table "on" f1 "=" f2 & args] (recur [args (update-in options [:joins] (fnil conj []) [(keyword f1) table (keyword f2)])])
+    :else original))
+
+(defn- check-parse-result [[v options]]
+  (if (= v [])
+    options
+    nil))
+
+(defn- parse-key-value-pairs [[v options :as original]]
+  (match v
+    [key "=" value & args] (recur [args (update-in options [:values] (fnil assoc {}) (keyword key) (read-string value))])
+    :else original))
+
+(defn- parse-select-clauses [v]
+  (-> [v {}]
+      parse-where-clause
+      parse-order-by-clause
+      parse-limit-clause
+      parse-join-clause
+      check-parse-result))
+
+(defn- parse-delete-clauses [v]
+  (-> [v {}]
+      parse-where-clause
+      check-parse-result))
+
+(defn- parse-insert-clauses [v]
+  (-> [v nil]
+      parse-key-value-pairs
+      check-parse-result))
+
+(defn- parse-update-clauses [v]
+  (-> [v nil]
+      parse-key-value-pairs
+      parse-where-clause
+      check-parse-result))
+
+(defn parse-query [v]
   (match v
     ["select" table & args]
-      (if-let [options (parse-other-clauses args {})]
-        (list* table (mapcat identity options)))
+      (if-let [options (parse-select-clauses args)]
+        (list* 'select table (mapcat identity options)))
+
+    ["delete" table & args]
+      (if-let [options (parse-delete-clauses args)]
+        (list* 'delete table (mapcat identity options)))
+
+    ["insert" "into" table "values" & args]
+      (if-let [options (parse-insert-clauses args)]
+        (list* 'insert table (list (:values options))))
+
+    ["update" table "set" & args]
+      (if-let [options (parse-update-clauses args)]
+        (list* 'update table
+          (list*
+            (:values options)
+            (mapcat identity (remove #(= :values (% 0)) options)))))
+
+    ["drop" "table" table]
+      (list 'drop-table table)
+
+    ["create" "table" table]
+      (list 'create-table table)
+
     :else nil))
 
 ;; Функция выполняющая парсинг запроса переданного пользователем
 ;;
 ;; Синтаксис запроса:
 ;; SELECT table_name [WHERE column comp-op value] [ORDER BY column] [LIMIT N] [JOIN other_table ON left_column = right_column]
+;; INSERT INTO table_name VALUES column1 = value1 column2 = value2
+;; UPDATE table_name SET column1 = value1 column2 = value2 [WHERE column comp-op value]
+;; DELETE table_name [WHERE column comp-op value]
+;; CREATE TABLE table_name
+;; DROP TABLE table_name
 ;;
 ;; - Имена колонок указываются в запросе как обычные имена, а не в виде keywords. В
 ;;   результате необходимо преобразовать в keywords
@@ -43,20 +115,31 @@
 ;; Если запрос нельзя распарсить, то вернуть nil
 
 ;; Примеры вызова:
-;; > (parse-select "select student")
-;; ("student")
-;; > (parse-select "select student where id = 10")
-;; ("student" :where #<function>)
-;; > (parse-select "select student where id = 10 limit 2")
-;; ("student" :where #<function> :limit 2)
-;; > (parse-select "select student where id = 10 order by id limit 2")
-;; ("student" :where #<function> :order-by :id :limit 2)
-;; > (parse-select "select student where id = 10 order by id limit 2 join subject on id = sid")
-;; ("student" :where #<function> :order-by :id :limit 2 :joins [[:id "subject" :sid]])
-;; > (parse-select "werfwefw")
+;; > (parse-query-string "select student")
+;; (select "student")
+;; > (parse-query-string "select student where id = 10")
+;; (select "student" :where #<function>)
+;; > (parse-query-string "select student where id = 10 limit 2")
+;; (select "student" :where #<function> :limit 2)
+;; > (parse-query-string "select student where id = 10 order by id limit 2")
+;; (select "student" :where #<function> :order-by :id :limit 2)
+;; > (parse-query-string "select student where id = 10 order by id limit 2 join subject on id = sid")
+;; (select "student" :where #<function> :order-by :id :limit 2 :joins [[:id "subject" :sid]])
+;; > (parse-query-string "werfwefw")
 ;; nil
-(defn parse-select [^String sel-string]
-  (parse-select-clause (vec (.split sel-string " +"))))
+;; > (parse-query-string "update student set id = 10 name = \"20\" where a = b")
+;; (update "student" {:name "20", :id 10} :where #<query$make_where_function$fn__1900 task02.query$make_where_function$fn__1900@48c5a439>)
+;; > (parse-query-string "delete student where a = b")
+;; (delete "student" :where #<query$make_where_function$fn__1900 task02.query$make_where_function$fn__1900@3c4ac33d>)
+;; > (parse-query-string "insert into student values a = \"b\" c = \"d\"")
+;; (insert "student" {:c "d", :a "b"})
+;; > (parse-query-string "create table group")
+;; (create-table "group")
+;; > (parse-query-string "drop table group")
+;; (drop-table "group")
+;; nil
+(defn parse-query-string [^String sel-string]
+  (parse-query (vec (.split sel-string " +"))))
 
 ;; Выполняет запрос переданный в строке.  Бросает исключение если не удалось распарсить запрос
 
@@ -70,6 +153,9 @@
 ;; > (perform-query "not valid")
 ;; exception...
 (defn perform-query [^String sel-string]
-  (if-let [query (parse-select sel-string)]
-    (apply select (get-table (first query)) (rest query))
+  (if-let [[action table-name & args] (parse-query-string sel-string)]
+    (let [table (if (.contains '(select insert update delete) action)
+                  (get-table table-name)
+                  table-name)]
+      (apply (ns-resolve 'task02.db action) table args))
     (throw (IllegalArgumentException. (str "Can't parse query: " sel-string)))))

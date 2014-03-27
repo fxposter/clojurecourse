@@ -7,28 +7,31 @@
 
 (db/load-initial-data)
 
-(deftest parse-select-test
-  (testing (str "parse-select on 'select student'")
-    (let [[tb-name & {:keys [where limit order-by joins]}]
-          (parse-select "select student")]
+(deftest parse-query-string-test
+  (testing (str "parse-query-string on 'select student'")
+    (let [[action tb-name & {:keys [where limit order-by joins]}]
+          (parse-query-string "select student")]
+      (is (= action 'select))
       (is (= tb-name "student"))
       (is (nil? where))
       (is (nil? order-by))
       (is (nil? joins))
       (is (nil? limit))))
 
-  (testing (str "parse-select on 'select student where id = 10'")
-    (let [[tb-name & {:keys [where limit order-by joins]}]
-          (parse-select "select student where id = 10")]
+  (testing (str "parse-query-string on 'select student where id = 10'")
+    (let [[action tb-name & {:keys [where limit order-by joins]}]
+          (parse-query-string "select student where id = 10")]
+      (is (= action 'select))
       (is (= tb-name "student"))
       (is (fn? where))
       (is (nil? order-by))
       (is (nil? joins))
       (is (nil? limit))))
 
-  (testing (str "parse-select on 'select student where id = 10'")
-    (let [[tb-name & {:keys [where limit order-by joins]}]
-          (parse-select "select student where id = 10 order by year limit 5 join subject on id = sid")]
+  (testing (str "parse-query-string on 'select student where id = 10'")
+    (let [[action tb-name & {:keys [where limit order-by joins]}]
+          (parse-query-string "select student where id = 10 order by year limit 5 join subject on id = sid")]
+      (is (= action 'select))
       (is (= tb-name "student"))
       (is (fn? where))
       (is (= order-by :year))

@@ -37,10 +37,12 @@
       (partition 2 kvs))))
 
 (defn create-table [tbl-name]
-  (create-tables tbl-name []))
+  (create-tables tbl-name '())
+  nil)
 
 (defn drop-table [tbl-name]
-  (swap! tables dissoc tbl-name))
+  (swap! tables dissoc tbl-name)
+  nil)
 
 ;;; Данная функция загружает начальные данные из файлов .csv
 ;;; и сохраняет их в изменяемых переменных student, subject, student-subject
