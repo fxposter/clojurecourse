@@ -42,7 +42,7 @@
 
 (deftest perform-query-test
   (testing "perform-query"
-      (is (perform-query "select student where year = 1997")
-          '({:year 1997, :surname "Petrov", :id 2}))
-      (is (perform-query "select student where year = 1111")
-          '())))
+      (is (= (perform-query "select student where year = 1997")
+             '({:year 1997, :surname "Petrov", :id 2})))
+      (is (= (perform-query "select student where year = 1111")
+             '()))))
