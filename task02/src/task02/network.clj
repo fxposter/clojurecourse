@@ -22,7 +22,7 @@
 
           ;;; 2) выполнить запрос при помощи perform-query и записать
           ;;; результат в переопределенный *out*
-          (println (perform-query s))
+          (prn (perform-query s))
           ))
       (catch Throwable ex
         (println "Exception: " ex))

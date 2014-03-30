@@ -25,14 +25,12 @@
 
 ;; функция должна вернуть мутабельный объект используя его имя
 (defn get-table [^String tbl-name]
-  (let [normalized-tbl-name (str/lower-case tbl-name)
-        tbl (@tables normalized-tbl-name)]
-    (or tbl
-      (throw (IllegalArgumentException. (str "Table " normalized-tbl-name " does not exist"))))))
+  (or (@tables tbl-name)
+    (throw (IllegalArgumentException. (str "Table " tbl-name " does not exist")))))
 
 (defn- create-tables [& kvs]
-  (apply swap! tables assoc
-    (mapcat
+  (swap! tables into
+    (map
       (fn [[key value]] [key (atom value)])
       (partition 2 kvs))))
 

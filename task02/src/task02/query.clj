@@ -1,6 +1,6 @@
 (ns task02.query
-  (:use [clojure.core.match :only (match)])
-  (:use [task02 helpers db]))
+  (:use [clojure.core.match :only (match)]
+        [task02 helpers db]))
 
 (defn make-where-function [field op value]
   (fn [entry]
@@ -23,17 +23,22 @@
 
 (defn- parse-join-clause [[v options :as original]]
   (match v
-    ["join" table "on" f1 "=" f2 & args] (recur [args (update-in options [:joins] (fnil conj []) [(keyword f1) table (keyword f2)])])
+    ["join" table "on" f1 "=" f2 & args]
+      (let [join-args [(keyword f1) table (keyword f2)]
+            updated-options (update-in options [:joins] (fnil conj []) join-args)]
+        (recur [args updated-options]))
     :else original))
 
 (defn- check-parse-result [[v options]]
-  (if (= v [])
+  (if (empty? v)
     options
     nil))
 
 (defn- parse-key-value-pairs [[v options :as original]]
   (match v
-    [key "=" value & args] (recur [args (update-in options [:values] (fnil assoc {}) (keyword key) (read-string value))])
+    [key "=" value & args]
+      (let [updated-options (update-in options [:values] (fnil assoc {}) (keyword key) (read-string value))]
+        (recur [args updated-options]))
     :else original))
 
 (defn- parse-select-clauses [v]
@@ -63,19 +68,19 @@
 (defn parse-query [v]
   (match v
     ["select" table & args]
-      (if-let [options (parse-select-clauses args)]
+      (when-let [options (parse-select-clauses args)]
         (list* 'select table (mapcat identity options)))
 
     ["delete" table & args]
-      (if-let [options (parse-delete-clauses args)]
+      (when-let [options (parse-delete-clauses args)]
         (list* 'delete table (mapcat identity options)))
 
     ["insert" "into" table "values" & args]
-      (if-let [options (parse-insert-clauses args)]
+      (when-let [options (parse-insert-clauses args)]
         (list* 'insert table (list (:values options))))
 
     ["update" table "set" & args]
-      (if-let [options (parse-update-clauses args)]
+      (when-let [options (parse-update-clauses args)]
         (list* 'update table
           (list*
             (:values options)
