@@ -1,6 +1,14 @@
 (ns task02.query
-  (:use [clojure.core.match :only (match)]
+  (:use [clojure.core.match :only (match emit-pattern to-source)]
         [task02 helpers db]))
+
+(defrecord RegexPattern [regex])
+
+(defmethod emit-pattern java.util.regex.Pattern [pat]
+  (task02.query.RegexPattern. pat))
+
+(defmethod to-source task02.query.RegexPattern [pat ocr]
+  `(re-matches ~(:regex pat) ~ocr))
 
 (defn make-where-function [field op value]
   (fn [entry]
@@ -8,22 +16,22 @@
 
 (defn- parse-where-clause [[v options :as original]]
   (match v
-    ["where" field op value & args] [args (assoc options :where (make-where-function field op value))]
+    [#"(?i)where" field op value & args] [args (assoc options :where (make-where-function field op value))]
     :else original))
 
 (defn- parse-order-by-clause [[v options :as original]]
   (match v
-    ["order" "by" field & args] [args (assoc options :order-by (keyword field))]
+    [#"(?i)order" #"(?i)by" field & args] [args (assoc options :order-by (keyword field))]
     :else original))
 
 (defn- parse-limit-clause [[v options :as original]]
   (match v
-    ["limit" limit & args] [args (assoc options :limit (parse-int limit))]
+    [#"(?i)limit" limit & args] [args (assoc options :limit (parse-int limit))]
     :else original))
 
 (defn- parse-join-clause [[v options :as original]]
   (match v
-    ["join" table "on" f1 "=" f2 & args]
+    [#"(?i)join" table #"(?i)on" f1 "=" f2 & args]
       (let [join-args [(keyword f1) table (keyword f2)]
             updated-options (update-in options [:joins] (fnil conj []) join-args)]
         (recur [args updated-options]))
@@ -67,29 +75,29 @@
 
 (defn parse-query [v]
   (match v
-    ["select" table & args]
+    [#"(?i)select" table & args]
       (when-let [options (parse-select-clauses args)]
         (list* 'select table (mapcat identity options)))
 
-    ["delete" table & args]
+    [#"(?i)delete" table & args]
       (when-let [options (parse-delete-clauses args)]
         (list* 'delete table (mapcat identity options)))
 
-    ["insert" "into" table "values" & args]
+    [#"(?i)insert" #"(?i)into" table #"(?i)values" & args]
       (when-let [options (parse-insert-clauses args)]
         (list* 'insert table (list (:values options))))
 
-    ["update" table "set" & args]
+    [#"(?i)update" table #"(?i)set" & args]
       (when-let [options (parse-update-clauses args)]
         (list* 'update table
           (list*
             (:values options)
             (mapcat identity (remove #(= :values (% 0)) options)))))
 
-    ["drop" "table" table]
+    [#"(?i)drop" #"(?i)table" table]
       (list 'drop-table table)
 
-    ["create" "table" table]
+    [#"(?i)create" #"(?i)table" table]
       (list 'create-table table)
 
     :else nil))
