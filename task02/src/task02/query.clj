@@ -1,14 +1,6 @@
 (ns task02.query
   (:use [clojure.core.match :only (match emit-pattern to-source)]
-        [task02 helpers db]))
-
-(defrecord RegexPattern [regex])
-
-(defmethod emit-pattern java.util.regex.Pattern [pat]
-  (task02.query.RegexPattern. pat))
-
-(defmethod to-source task02.query.RegexPattern [pat ocr]
-  `(re-matches ~(:regex pat) ~ocr))
+        [task02 helpers db match-regex]))
 
 (defn make-where-function [field op value]
   (fn [entry]
