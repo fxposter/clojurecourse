@@ -54,12 +54,12 @@
       (.add field amount))
     .getTime))
 
-(defn- is-date? [date]
+(defn- date? [date]
   (instance? java.util.Date date))
 
 (defn compare-dates-or-numbers [op date-or-number1 date-or-number2]
-  (if (and (is-date? date-or-number1)
-           (is-date? date-or-number2))
+  (if (and (date? date-or-number1)
+           (date? date-or-number2))
     (op (.compareTo date-or-number1 date-or-number2) 0)
     (op date-or-number1 date-or-number2)))
 
