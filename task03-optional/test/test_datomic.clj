@@ -1,7 +1,7 @@
 (ns test-datomic
-  (:use
-    datomic
-    clojure.test))
+  (:use datomic
+        clojure.test)
+  (:refer-clojure :exclude [import]))
 
 (deftest test-siblings
   (is (= (siblings (db) :movie :videogame)
