@@ -85,7 +85,6 @@
   `(compare-dates-or-numbers ~op ~date1 ~date2))
 
 (defn- apply-comparison-transformations [code]
-  (println code)
   (if (matches-date-comparison-dsl? code)
     (transform-date-comparison-dsl code)
     code))
